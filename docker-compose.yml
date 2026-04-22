@@ -1,0 +1,147 @@
+# Docker Compose configuration for Harbor development environment
+# Based on goharbor/harbor with custom modifications
+
+version: '3.8'
+
+services:
+  # PostgreSQL database for Harbor
+  postgresql:
+    image: goharbor/harbor-db:v2.10.0
+    container_name: harbor-db
+    restart: always
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    volumes:
+      - harbor_db_data:/var/lib/postgresql/data:z
+    networks:
+      - harbor
+    env_file:
+      - ./config/db.env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache
+  redis:
+    image: goharbor/redis-photon:v2.10.0
+    container_name: harbor-redis
+    restart: always
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - harbor_redis_data:/var/lib/redis:z
+    networks:
+      - harbor
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Harbor core service
+  core:
+    image: goharbor/harbor-core:v2.10.0
+    container_name: harbor-core
+    restart: always
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    volumes:
+      - harbor_core_data:/data:z
+      - ./config/core:/etc/core:z
+      - ./logs/core:/var/log/harbor:z
+    networks:
+      - harbor
+    env_file:
+      - ./config/core.env
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/v2.0/ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # Harbor registry
+  registry:
+    image: goharbor/registry-photon:v2.10.0
+    container_name: harbor-registry
+    restart: always
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - harbor_registry_data:/storage:z
+      - ./config/registry:/etc/registry:z
+    networks:
+      - harbor
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nginx proxy / portal
+  proxy:
+    image: goharbor/nginx-photon:v2.10.0
+    container_name: harbor-proxy
+    restart: always
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./config/nginx:/etc/nginx:z
+      - ./logs/proxy:/var/log/nginx:z
+    networks:
+      - harbor
+    depends_on:
+      core:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+
+volumes:
+  harbor_db_data:
+    driver: local
+  harbor_redis_data:
+    driver: local
+  harbor_core_data:
+    driver: local
+  harbor_registry_data:
+    driver: local
+
+networks:
+  harbor:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
