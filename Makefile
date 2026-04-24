@@ -41,6 +41,12 @@ build: ## Build all Go binaries
 .PHONY: test
 test: ## Run unit tests
 	@echo "Running unit tests..."
+	# Note: removed -race flag locally since it slows things down significantly on my machine
+	cd $(SRC_DIR) && go test -v -coverprofile=coverage.out ./...
+
+.PHONY: test-race
+test-race: ## Run unit tests with race detector enabled
+	@echo "Running unit tests with race detector..."
 	cd $(SRC_DIR) && go test -v -race -coverprofile=coverage.out ./...
 
 .PHONY: test-coverage
