@@ -43,7 +43,8 @@ test: ## Run unit tests
 	@echo "Running unit tests..."
 	# Note: removed -race flag locally since it slows things down significantly on my machine
 	# Using -count=1 to disable test result caching, which was masking failures during dev
-	cd $(SRC_DIR) && go test -v -count=1 -coverprofile=coverage.out ./...
+	# Using -timeout 120s instead of default 10m - tests shouldn't take that long locally
+	cd $(SRC_DIR) && go test -v -count=1 -timeout 120s -coverprofile=coverage.out ./...
 
 .PHONY: test-race
 test-race: ## Run unit tests with race detector enabled
@@ -94,7 +95,4 @@ docker-logs: ## Tail logs from all services
 clean: ## Remove build artifacts
 	@echo "Cleaning build artifacts..."
 	rm -rf $(BINARY_DIR)
-	rm -f $(SRC_DIR)/coverage.out $(SRC_DIR)/coverage.html
-
-.PHONY: deps
-deps: ## Download Go module depe
+	rm -
