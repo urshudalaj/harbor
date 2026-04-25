@@ -42,7 +42,8 @@ build: ## Build all Go binaries
 test: ## Run unit tests
 	@echo "Running unit tests..."
 	# Note: removed -race flag locally since it slows things down significantly on my machine
-	cd $(SRC_DIR) && go test -v -coverprofile=coverage.out ./...
+	# Using -count=1 to disable test result caching, which was masking failures during dev
+	cd $(SRC_DIR) && go test -v -count=1 -coverprofile=coverage.out ./...
 
 .PHONY: test-race
 test-race: ## Run unit tests with race detector enabled
@@ -96,13 +97,4 @@ clean: ## Remove build artifacts
 	rm -f $(SRC_DIR)/coverage.out $(SRC_DIR)/coverage.html
 
 .PHONY: deps
-deps: ## Download Go module dependencies
-	@echo "Downloading dependencies..."
-	cd $(SRC_DIR) && go mod download
-	cd $(SRC_DIR) && go mod tidy
-
-.PHONY: version
-version: ## Print version information
-	@echo "Version:    $(GIT_TAG)"
-	@echo "Git Commit: $(GIT_COMMIT)"
-	@echo "Build Date: $(BUILD_DATE)"
+deps: ## Download Go module depe
